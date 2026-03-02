@@ -6,51 +6,109 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
     
-    <title>JPY ➡️ RM 转换器</title>
+    <title>JPY ⇌ RM Pro</title>
     
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/5169/5169120.png">
     <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/5169/5169120.png">
 
     <style>
-        body { font-family: -apple-system, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #121212; color: white; margin: 0; overflow: hidden; }
-        .container { background: #1e1e1e; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 85%; max-width: 350px; }
-        h2 { margin-bottom: 20px; font-weight: 300; letter-spacing: 1px; }
-        input { width: 90%; padding: 15px; margin: 15px 0; font-size: 22px; text-align: center; border: none; border-radius: 12px; background: #2c2c2c; color: white; outline: none; }
-        #result { font-size: 32px; font-weight: bold; margin-top: 20px; color: #00d1b2; }
-        #rateInfo { font-size: 13px; color: #888; margin-top: 20px; border-top: 1px solid #333; padding-top: 15px; }
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { 
+            display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; margin: 0; overflow: hidden;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #f8fafc;
+        }
+        /* 毛玻璃面板设计 */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 35px 25px;
+            width: 90%; max-width: 380px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h2 { margin: 0; font-weight: 500; font-size: 22px; letter-spacing: 1px; color: #38bdf8; }
+        .input-group { margin-bottom: 25px; position: relative; }
+        .input-group label { display: block; font-size: 14px; color: #94a3b8; margin-bottom: 8px; padding-left: 5px; }
+        .input-group input {
+            width: 100%; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px; padding: 18px 20px; font-size: 28px; color: #fff;
+            outline: none; transition: all 0.3s ease; text-align: right;
+        }
+        .input-group input:focus { border-color: #38bdf8; background: rgba(0, 0, 0, 0.3); }
+        .currency-symbol { position: absolute; left: 20px; bottom: 18px; font-size: 22px; color: #cbd5e1; font-weight: 500; }
+        .swap-icon { text-align: center; color: #475569; font-size: 24px; margin: -10px 0 15px 0; }
+        #status { text-align: center; font-size: 12px; color: #64748b; margin-top: 20px; }
+        .dot { display: inline-block; width: 8px; height: 8px; background-color: #10b981; border-radius: 50%; margin-right: 6px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>🇯🇵 JPY ➡️ RM 🇲🇾</h2>
-        <input type="number" id="jpyAmount" placeholder="输入日元金额" oninput="convert()">
-        <div id="result">RM 0.00</div>
-        <p id="rateInfo">正在获取最新汇率...</p>
+    <div class="glass-panel">
+        <div class="header">
+            <h2>汇率转换 Pro</h2>
+        </div>
+
+        <div class="input-group">
+            <label>日元 (JPY)</label>
+            <span class="currency-symbol">¥</span>
+            <input type="number" id="inputJpy" placeholder="0" oninput="calcToMyr()">
+        </div>
+
+        <div class="swap-icon">⇅</div>
+
+        <div class="input-group">
+            <label>马币 (MYR)</label>
+            <span class="currency-symbol">RM</span>
+            <input type="number" id="inputMyr" placeholder="0" oninput="calcToJpy()">
+        </div>
+
+        <div id="status">
+            <span class="dot"></span>正在同步全球汇率...
+        </div>
     </div>
 
     <script>
-        let currentRate = 0;
-        // 自动获取最新汇率
+        let myrRate = 0;
+        const statusEl = document.getElementById('status');
+        const jpyInput = document.getElementById('inputJpy');
+        const myrInput = document.getElementById('inputMyr');
+
+        // 获取最新汇率
         fetch('https://open.er-api.com/v6/latest/JPY')
             .then(res => res.json())
             .then(data => {
-                currentRate = data.rates.MYR;
-                document.getElementById('rateInfo').innerText = `实时汇率：100 JPY ≈ RM ${(currentRate * 100).toFixed(2)}`;
+                myrRate = data.rates.MYR;
+                statusEl.innerHTML = `<span class="dot"></span>实时汇率: 100 JPY ≈ RM ${(myrRate * 100).toFixed(2)}`;
             })
-            .catch(() => document.getElementById('rateInfo').innerText = "网络连接失败");
+            .catch(() => {
+                statusEl.innerHTML = `<span class="dot" style="background-color:#ef4444;"></span>离线模式 (请连接网络)`;
+            });
 
-        function convert() {
-            let amount = document.getElementById('jpyAmount').value;
-            if(amount && currentRate) {
-                document.getElementById('result').innerText = 'RM ' + (amount * currentRate).toFixed(2);
-            } else {
-                document.getElementById('result').innerText = 'RM 0.00';
-            }
+        // JPY 转 RM
+        function calcToMyr() {
+            if (!myrRate) return;
+            let jpy = parseFloat(jpyInput.value);
+            if (isNaN(jpy)) { myrInput.value = ''; return; }
+            myrInput.value = (jpy * myrRate).toFixed(2);
+        }
+
+        // RM 转 JPY
+        function calcToJpy() {
+            if (!myrRate) return;
+            let myr = parseFloat(myrInput.value);
+            if (isNaN(myr)) { jpyInput.value = ''; return; }
+            jpyInput.value = (myr / myrRate).toFixed(0);
         }
     </script>
 </body>
 </html>
+
 
 
 
