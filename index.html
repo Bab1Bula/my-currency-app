@@ -12,7 +12,6 @@
     
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/5169/5169120.png">
     <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/5169/5169120.png">
-    
     <link rel="manifest" href="manifest.json">
 
     <style>
@@ -23,7 +22,6 @@
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             color: #f8fafc;
         }
-        /* 毛玻璃面板设计 */
         .glass-panel {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(16px);
@@ -67,8 +65,21 @@
         <div class="input-group">
             <label>马币 (MYR)</label>
             <span class="currency-symbol">RM</span>
-            <input type="number" id="inputMyr" placeholder="0"
+            <input type="number" id="inputMyr" placeholder="0" oninput="calcToJpy()">
+        </div>
 
+        <div id="status">
+            <span class="dot"></span>正在同步全球汇率...
+        </div>
+    </div>
+
+    <script>
+        let myrRate = 0;
+        const statusEl = document.getElementById('status');
+        const jpyInput = document.getElementById('inputJpy');
+        const myrInput = document.getElementById('inputMyr');
+
+        fetch('
 
 
 
