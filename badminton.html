@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
+    <title>Castor's 羽球 Pro</title>
+    <style>
+        * { box-sizing: border-box; font-family: -apple-system, sans-serif; user-select: none; }
+        body {
+            margin: 0; padding: 0; height: 100vh;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: white; display: flex; flex-direction: column; overflow: hidden;
+        }
+        /* 顶部大比分板 */
+        .scoreboard {
+            height: 80px; background: rgba(0,0,0,0.4);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 24px; font-weight: bold; border-bottom: 2px solid rgba(255,255,255,0.1);
+        }
+        .set-score { color: #f59e0b; font-size: 32px; margin: 0 20px; }
+        
+        /* 比赛计分区域 */
+        .court { display: flex; flex: 1; width: 100%; }
+        .side {
+            flex: 1; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            cursor: pointer; transition: all 0.1s ease;
+            position: relative;
+        }
+        .side:active { background: rgba(255,255,255,0.05); transform: scale(0.98); }
+        .left-side { border-right: 2px dashed rgba(255,255,255,0.2); }
+        
+        .name { font-size: 28px; margin-bottom: 10px; color: #94a3b8; font-weight: 500; }
+        .score { font-size: 140px; font-weight: 800; line-height: 1; text-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .serve-indicator {
+            width: 16px; height: 16px; background-color: #10b981;
+            border-radius: 50%; margin-top: 20px; opacity: 0; transition: opacity 0.3s;
+        }
+        .has-serve .serve-indicator { opacity: 1; box-shadow: 0 0 10px #10b981; }
+
+        /* 底部控制区 (优化单手触及率) */
+        .controls {
+            padding: 20px; background: rgba(0,0,0,0.3);
+            display: flex; justify-content: space-between; gap: 15px;
+        }
+        button {
+            flex: 1; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            color: white; padding: 18px 0; border-radius: 16px; font-size: 18px; font-weight: 600;
+        }
+        button:active { background: rgba(255,255,255,0.2); }
+        .btn-undo { color: #f8fafc; }
+        .btn-reset { color: #ef4444; }
+
+        /* 弹窗提醒 */
+        #modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
+            display: none; justify-content: center; align-items: center; flex-direction: column;
+            z-index: 100;
+        }
+        #modal h1 { color: #38bdf8; font-size: 40px; margin-bottom: 10px; }
+        #modal p { color: #94a3b8; font-size: 20px; margin-bottom: 30px; }
+        #modal button {
+            background: #38bdf8; color: #0f172a; border: none; padding: 15px 40px; width: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="modal">
+        <h1 id="modal-title">Castor 胜出本局!</h1>
+        <p id="modal-desc">准备下一局比赛</p>
+        <button onclick="nextGame()">继续 / 换边</button>
+    </div>
+
+    <div class="scoreboard">
+        <span id="name-l">Castor</span>
+        <span class="set-score" id="set-l">0</span>
+        <span style="color:#64748b;">:</span>
+        <span class="set-score" id="set-r">0</span>
+        <span id="name-r">Opponent</span>
+    </div>
+
+    <div class="court">
+        <div class="side left-side has-serve" id="area-l" onclick="addScore('l')">
+            <div class="name">Castor</div>
+            <div id="score-l" class="score">0</div>
+            <div class="serve-indicator"></div>
+        </div>
+        <div class="side right-side" id="area-r" onclick="addScore('r')">
+            <div class="name">Opponent</div>
+            <div id="score-r" class="score">0</div>
+            <div class="serve-indicator"></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-undo" onclick="undo()">↩ 撤销</button>
+        <button class="btn-reset" onclick="resetAll()">✖ 重置整场</button>
+    </div>
+
+    <script>
+        let s = { l: 0, r: 0 }; // 当前分数
+        let sets = { l: 0, r: 0 }; // 局数大比分
+        let serve = 'l'; // 发球权
+        let history = []; // 撤销记录
+
+        // 震动反馈功能
+        function vibrate() {
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
+        function addScore(player) {
+            vibrate();
+            // 保存历史用于撤销
+            history.push({ sl: s.l, sr: s.r, setl: sets.l, setr: sets.r, srv: serve });
+            
+            s[player]++;
+            serve = player; // 得分方获得发球权
+            updateUI();
+            checkRules();
+        }
+
+        function undo() {
+            if (history.length > 0) {
+                vibrate();
+                let last = history.pop();
+                s.l = last.sl; s.r = last.sr;
+                sets.l = last.setl; sets.r = last.setr;
+                serve = last.srv;
+                updateUI();
+            }
+        }
+
+        function checkRules() {
+            let winL = (s.l >= 21 && s.l - s.r >= 2) || s.l === 30;
+            let winR = (s.r >= 21 && s.r - s.l >= 2) || s.r === 30;
+            
+            if (winL || winR) {
+                if (winL) sets.l++; else sets.r++;
+                let winnerName = winL ? "Castor" : "Opponent";
+                
+                // 检查是否拿下两局赢下整场比赛
+                if (sets.l === 2 || sets.r === 2) {
+                    showModal(winnerName + " 赢下整场比赛! 🏆", "比赛结束");
+                } else {
+                    showModal(winnerName + " 赢下本局!", "请双方交换场地");
+                }
+            } else if (s.l === 11 || s.r === 11) {
+                // 11分间歇换边提示 (只在一局中第一次达到11分时提示)
+                if (s.l + s.r === 11 || s.l + s.r === 12 || s.l + s.r === 13) {
+                    if (history[history.length-1].sl < 11 && history[history.length-1].sr < 11) {
+                        showModal("11分间歇 ⏱", "您可以擦汗并交换场地");
+                    }
+                }
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('score-l').innerText = s.l;
+            document.getElementById('score-r').innerText = s.r;
+            document.getElementById('set-l').innerText = sets.l;
+            document.getElementById('set-r').innerText = sets.r;
+            
+            document.getElementById('area-l').classList.toggle('has-serve', serve === 'l');
+            document.getElementById('area-r').classList.toggle('has-serve', serve === 'r');
+        }
+
+        function showModal(title, desc) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-desc').innerText = desc;
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function nextGame() {
+            if (sets.l === 2 || sets.r === 2) {
+                resetAll(); // 整场结束后重置
+            } else {
+                // 进入下一局
+                s.l = 0; s.r = 0;
+                history = [];
+                document.getElementById('modal').style.display = 'none';
+                updateUI();
+            }
+        }
+
+        function resetAll() {
+            if (confirm("确定要清空所有分数，重新开始比赛吗？")) {
+                s.l = 0; s.r = 0; sets.l = 0; sets.r = 0; serve = 'l'; history = [];
+                document.getElementById('modal').style.display = 'none';
+                updateUI();
+            }
+        }
+    </script>
+</body>
+</html>
