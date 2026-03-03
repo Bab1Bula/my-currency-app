@@ -1,7 +1,9 @@
 {
+  "id": "badminton-pro-castor",
   "name": "Castor's 羽球 Pro",
   "short_name": "羽球计分",
   "start_url": "/my-currency-app/badminton.html",
+  "scope": "/my-currency-app/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0f172a",
